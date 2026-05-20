@@ -7,10 +7,23 @@
 </head>
 <body>
   <div x-data>
-    <div class="form-group">
-      <label>Enable EVOL</label>
-      <input type="checkbox" x-model="config.enabled" />
+    <!-- Profile Indicator -->
+    <div style="background: #f0f0f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; font-size: 13px;">
+      <strong>Profile:</strong>
+      <span x-text="$store.pluginSettings.agentProfileLabel($store.pluginSettings.agentProfileKey)"></span>
     </div>
+
+    <!-- Active Toggle -->
+    <div class="form-group">
+      <label style="font-weight: bold; font-size: 14px;">
+        <input type="checkbox" x-model="config.enabled" style="margin-right: 8px;" />
+        Active EVOL for this profile
+      </label>
+      <small style="color: #666; display: block; margin-top: 4px;">When enabled, EVOL will run heartbeats and cascade triggers for this agent profile.</small>
+    </div>
+
+    <hr style="margin: 16px 0; border: none; border-top: 1px solid #ddd;" />
+
     <div class="form-group">
       <label>Edit Mode</label>
       <select x-model="config.edit_mode">
@@ -28,8 +41,24 @@
       <input type="number" x-model="config.express_cooldown_hours" />
     </div>
     <div class="form-group">
-      <label>Reflect Threshold (absorb counts)</label>
+      <label>Reflect Threshold (absorb ticks → reflect)</label>
       <input type="number" x-model="config.phase_triggers.reflect" />
+      <small style="color: #666;">Number of absorb ticks before triggering reflect phase.</small>
+    </div>
+    <div class="form-group">
+      <label>Express Threshold (reflects completed → express)</label>
+      <input type="number" x-model="config.phase_triggers.express" />
+      <small style="color: #666;">Number of reflect completions before triggering express phase.</small>
+    </div>
+    <div class="form-group">
+      <label>Explore Threshold (expresses completed → explore)</label>
+      <input type="number" x-model="config.phase_triggers.explore" />
+      <small style="color: #666;">Number of express completions before triggering explore phase.</small>
+    </div>
+    <div class="form-group">
+      <label>Memorize Threshold (explores completed → memorize)</label>
+      <input type="number" x-model="config.phase_triggers.memorize" />
+      <small style="color: #666;">Number of explore completions before triggering memory consolidation.</small>
     </div>
     <div class="form-group">
       <label>Ollama API Key</label>

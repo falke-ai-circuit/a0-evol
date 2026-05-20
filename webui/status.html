@@ -1,0 +1,141 @@
+<html>
+<head>
+<title>EVOL Status</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 20px; background: #0d0d0d; color: #e0e0e0; margin: 0; }
+  .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .card h3 { margin-top: 0; color: #E040FB; }
+  .status-ok { color: #76FF03; }
+  .status-err { color: #FF1744; }
+  .status-skip { color: #FFD600; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+  .badge-on { background: #76FF03; color: #000; }
+  .badge-off { background: #FF1744; color: #fff; }
+  .phase-bar { display: flex; gap: 8px; margin: 8px 0; }
+  .phase-dot { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+  .phase-dot.on { background: #76FF03; color: #000; }
+  .phase-dot.off { background: #555; color: #999; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #333; }
+  th { color: #999; font-size: 12px; text-transform: uppercase; }
+  button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .btn-cycle { background: #7C4DFF; color: white; margin-right: 8px; }
+  .btn-toggle { background: #E040FB; color: white; }
+  .refresh { color: #999; font-size: 12px; margin-left: 12px; cursor: pointer; }
+  .loading { color: #999; font-style: italic; }
+  .mono { font-family: monospace; font-size: 12px; color: #ccc; white-space: pre-wrap; background: #111; padding: 8px; border-radius: 4px; max-height: 200px; overflow-y: auto; }
+</style>
+</head>
+<body>
+<div x-data="{
+    status: null,
+    lastCycle: null,
+    loading: true,
+    error: null,
+    async loadStatus() {
+        this.loading = true;
+        this.error = null;
+        try {
+            const r1 = await fetch('/plugins', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action:'execute_tool', plugin_name:'a0_evol', tool_name:'evol_status', args:{}})
+            });
+            const d1 = await r1.json();
+            if (d1.ok && d1.result) this.status = d1.result.message || '';
+            else this.error = d1.error || 'Status fetch failed';
+
+            const r2 = await fetch('/plugins', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action:'execute_tool', plugin_name:'a0_evol', tool_name:'evol_last', args:{}})
+            });
+            const d2 = await r2.json();
+            if (d2.ok && d2.result) this.lastCycle = d2.result.message || '';
+        } catch(e) {
+            this.error = e.message || 'Connection error';
+        }
+        this.loading = false;
+    },
+    parseEnabled() {
+        if (!this.status) return false;
+        return this.status.includes('Enabled: True') || this.status.includes('Enabled: 1');
+    },
+    parseProfile() {
+        if (!this.status) return '';
+        const m = this.status.match(/Profile:\s*(\w+)/);
+        return m ? m[1] : '';
+    },
+    parsePhases() {
+        if (!this.status) return {};
+        try {
+            const m = this.status.match(/Phases:\s*(\{[^}]+\})/);
+            return m ? JSON.parse(m[1]) : {};
+        } catch { return {}; }
+    },
+    parsePhaseCounts() {
+        if (!this.status) return {};
+        try {
+            const m = this.status.match(/Phase counts:\s*(\{[^}]+\})/);
+            return m ? JSON.parse(m[1]) : {};
+        } catch { return {}; }
+    },
+    parseLastCycle() {
+        if (!this.status) return 'never';
+        const m = this.status.match(/Last cycle:\s*(.+)/);
+        return m ? m[1] : 'never';
+    },
+    parseHeartbeat() {
+        if (!this.status) return false;
+        return this.status.includes('running');
+    }
+}" x-init="loadStatus()">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+        <h2 style="margin: 0;">🧬 EVOL Status</h2>
+        <span @click="loadStatus()" class="refresh" title="Refresh">🔄 Refresh</span>
+    </div>
+
+    <!-- Status Card -->
+    <div class="card">
+        <h3>Overview</h3>
+        <template x-if="!loading && !error">
+            <div>
+                <p>
+                    <strong>Profile:</strong> <span x-text="parseProfile()"></span> &nbsp;
+                    <span class="badge" :class="parseEnabled() ? 'badge-on' : 'badge-off'" x-text="parseEnabled() ? 'ACTIVE' : 'INACTIVE'"></span> &nbsp;
+                    <span>Heartbeat: <strong x-text="parseHeartbeat() ? 'running' : 'stopped'"></strong></span>
+                </p>
+                <p><strong>Last cycle:</strong> <span x-text="parseLastCycle()"></span></p>
+
+                <!-- Phase triggers -->
+                <div class="phase-bar">
+                    <template x-for="phase in ['reflect', 'express', 'explore', 'memorize']" :key="phase">
+                        <div style="text-align: center;">
+                            <div class="phase-dot" :class="(parsePhases() || {})[phase] ? 'on' : 'off'">{{ phase[0].toUpperCase() }}</div>
+                            <div style="font-size: 10px; color: #999;" x-text="phase"></div>
+                            <div style="font-size: 11px;" x-text="(parsePhaseCounts() || {})[phase] || 0"></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+        <template x-if="loading">
+            <p class="loading">Loading status...</p>
+        </template>
+        <template x-if="error">
+            <p class="status-err"><strong>Error:</strong> <span x-text="error"></span></p>
+        </template>
+    </div>
+
+    <!-- Last Cycle Card -->
+    <div class="card" x-show="lastCycle && !loading">
+        <h3>Latest Cycle</h3>
+        <div class="mono" x-text="lastCycle"></div>
+    </div>
+
+    <!-- Raw Status -->
+    <div class="card" x-show="status && !loading">
+        <h3>Full Status</h3>
+        <pre class="mono" x-text="status"></pre>
+    </div>
+</div>
+</body>
+</html>

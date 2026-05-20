@@ -1,13 +1,13 @@
 """
 EVOL Knowledge — Three-Tier Memory System.
 
-Tier 3: CIRCUIT (SOUL.md, AGENTS.md, IDENTITY.md) — identity level
-Tier 2: MEMORY.md — working memory (8KB cap)
-Tier 1: KNOWLEDGE — wiki-style files with decay
+Tier 3: IDENTITY (agent.yaml, prompts/agent.system.main.specifics.md) — identity & behavioral level
+Tier 2: KNOWLEDGE — wiki-style files with decay (profile/knowledge/)
+Tier 1: CONTEXT — session-level memory
 
 Movement rules:
-  Knowledge → Memory → Circuit (promotion as weight increases)
-  Circuit → Memory → Knowledge (demotion via exponential decay)
+  Knowledge entries gain weight through reinforcement
+  Weight decays exponentially over time (decay_rate 0.95/day after 7-day grace)
   Phase-out at weight < 0.15
 """
 
@@ -43,7 +43,7 @@ def classify_domain(text: str) -> str:
         "hermes": ["hermes", "gateway", "conductor", "orchestrator"],
         "model": ["model", "llm", "provider", "token", "inference"],
         "telegram": ["telegram", "bot", "message", "channel"],
-        "memory": ["memory", "knowledge", "circuit", "recall"],
+        "memory": ["memory", "knowledge", "identity", "recall"],
         "network": ["network", "http", "api", "endpoint"],
         "security": ["security", "auth", "secret", "key", "token"],
         "coding": ["code", "python", "script", "function", "class"],
@@ -156,30 +156,30 @@ def apply_decay_to_knowledge(knowledge_dir: Path, decay_rate: float = 0.95,
     return phased_out
 
 
-# ── Memory Tier (MEMORY.md) ────────────────────────────────────────
+# ── Knowledge Capacity Management ────────────────────────────────────
 
-MEMORY_CAP_CHARS = 8000
+KNOWLEDGE_CAP_CHARS = 8000
 
 
-def manage_memory_capacity(memory_path: Path, new_entry: str) -> bool:
+def manage_knowledge_capacity(index_path: Path, new_entry: str) -> bool:
     """
-    Add entry to MEMORY.md with capacity management.
-    If file exceeds MEMORY_CAP_CHARS, trim lowest-weight entries.
+    Add entry to knowledge index with capacity management.
+    If file exceeds KNOWLEDGE_CAP_CHARS, trim lowest-weight entries.
 
     Returns True if entry was written.
     """
-    if not memory_path.exists():
+    if not index_path.exists():
         return False
 
     try:
-        current = memory_path.read_text()
+        current = index_path.read_text()
     except OSError:
         return False
 
-    if len(current) + len(new_entry) <= MEMORY_CAP_CHARS:
+    if len(current) + len(new_entry) <= KNOWLEDGE_CAP_CHARS:
         # Append directly
         try:
-            with open(memory_path, "a") as f:
+            with open(index_path, "a") as f:
                 f.write(new_entry + "\n")
             return True
         except OSError:
@@ -191,8 +191,8 @@ def manage_memory_capacity(memory_path: Path, new_entry: str) -> bool:
     if len(sections) <= 1:
         # Can't trim effectively, overwrite tail
         try:
-            truncated = current[:MEMORY_CAP_CHARS - len(new_entry) - 100] + "\n...\n" + new_entry + "\n"
-            memory_path.write_text(truncated)
+            truncated = current[:KNOWLEDGE_CAP_CHARS - len(new_entry) - 100] + "\n...\n" + new_entry + "\n"
+            index_path.write_text(truncated)
             return True
         except OSError:
             return False
@@ -207,7 +207,7 @@ def manage_memory_capacity(memory_path: Path, new_entry: str) -> bool:
     scored.sort(key=lambda x: x[0])  # lowest first
 
     # Keep removing until size fits
-    target_size = MEMORY_CAP_CHARS - len(new_entry) - 50
+    target_size = KNOWLEDGE_CAP_CHARS - len(new_entry) - 50
     kept = scored.copy()
     while kept:
         total = sum(len(s[1]) for s in kept)
@@ -217,36 +217,34 @@ def manage_memory_capacity(memory_path: Path, new_entry: str) -> bool:
 
     new_content = "\n".join(s[1] for s in kept) + "\n" + new_entry + "\n"
     try:
-        memory_path.write_text(new_content)
+        index_path.write_text(new_content)
         return True
     except OSError:
         return False
 
 
-# ── Circuit Tier (SOUL/AGENTS/IDENTITY) ────────────────────────────
+# ── Identity Tier (agent.yaml / specifics) ───────────────────────────
 
-def promote_to_circuit(cfg, filename: str, content: str, weight: float) -> bool:
+def promote_to_identity(cfg, filename: str, content: str, weight: float) -> bool:
     """
-    Promote a finding to a circuit file (SOUL.md, AGENTS.md, IDENTITY.md).
+    Promote a finding to identity storage.
+    Logs to identity_log.jsonl via _apply_identity_edit (safe, never mutates source files).
     Only writes if weight meets the file's threshold.
     """
-    threshold = cfg.get_circuit_weight(filename)
+    from helpers.registry import _apply_identity_edit
+    threshold = cfg.get_identity_weight(filename)
     if weight < threshold:
         return False
 
-    path = Path(cfg.get_circuit_path(filename))
-    if not path.exists():
-        return False
-
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    entry = f"\n| {date_str} | EVOL-promoted (w={weight:.2f}) | {content[:200]} |"
-
-    try:
-        with open(path, "a") as f:
-            f.write(entry + "\n")
-        return True
-    except OSError:
-        return False
+    # Map filename to tier for logging
+    tier_map = {
+        "agent.yaml": "soul",
+        "prompts/agent.system.main.specifics.md": "agents",
+        "SKILL.md": "memory",
+    }
+    tier = tier_map.get(filename, "knowledge")
+    _apply_identity_edit(cfg, tier, content)
+    return True
 
 
 # ── Cross-Cycle Pattern Detection ──────────────────────────────────
@@ -254,7 +252,7 @@ def promote_to_circuit(cfg, filename: str, content: str, weight: float) -> bool:
 def detect_cross_cycle_patterns(evol_log_path: Path, min_cycles: int = 3) -> List[Dict[str, Any]]:
     """
     Detect patterns recurring across 3+ cycles.
-    Auto-promotes to AGENTS.md at weight 0.85+.
+    Auto-promotes to identity at weight 0.85+.
     """
     if not evol_log_path.exists():
         return []

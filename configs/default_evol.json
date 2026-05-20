@@ -69,10 +69,9 @@
     }
   },
   "global_profiles": ["conductor"],
-  "circuit_weights": [
-    {"path": "SOUL.md", "weight": 1.0, "role": "identity"},
-    {"path": "AGENTS.md", "weight": 0.95, "role": "behavior"},
-    {"path": "MEMORY.md", "weight": 0.65, "role": "knowledge"},
-    {"path": "IDENTITY.md", "weight": 0.9, "role": "identity"}
+  "identity_weights": [
+    {"path": "agent.yaml", "weight": 1.0, "role": "identity"},
+    {"path": "prompts/agent.system.main.specifics.md", "weight": 0.95, "role": "behavior"},
+    {"path": "SKILL.md", "weight": 0.65, "role": "knowledge"}
   ]
 }

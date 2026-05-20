@@ -1,0 +1,16 @@
+{
+  "title": "a0-evol",
+  "description": "EVOL plugin for Agent Zero — subconscious observer with 5-phase evolution",
+  "instructions": "# AKIS 8-Gate Workflow\n\nAll code changes in this project must go through the orchestrator agent using the AKIS 8-gate workflow:\n\n| Gate | Name | Action | Tool |\n|------|------|--------|------|\n| G0 | Context Load | Load this skill | `skill_view(\"akis-workflow\")` |\n| G1 | Knowledge Query | Query project_knowledge.json for gotchas, hot cache, recent changes | `read_file(\"project_knowledge.json\")` |\n| G2 | Structured Plan | Create structured TODO with clear steps | `todo` tool |\n| G3 | Skill Preload | Preload relevant domain skills (evol, plugin-dev) | `skill_view` |\n| G4 | Intent Announce | Announce what you're doing and why | Message to user |\n| G5 | Execute + Verify | Implement changes, verify with imports/format checks | `terminal`, `patch`, `write_file` |\n| G6 | Workflow Log | Append to `.github/workflow-log.jsonl` — what was done, why, outcome | `write_file` (append) |\n| G7 | Knowledge Update | Run `python .github/scripts/knowledge.py --update` to refresh project_knowledge.json | `terminal` |\n\n**Anti-Patterns:**\n- ❌ Skip G1 → repeat known mistakes\n- ❌ Edit without G3 → miss format rules\n- ❌ Skip G7 → stale knowledge base\n- ❌ Commit without G6 → no audit trail",
+  "color": "#ff0040",
+  "git_url": "https://github.com/falke-ai-circuit/a0-evol",
+  "memory": "own",
+  "file_structure": {
+    "enabled": true,
+    "max_depth": 5,
+    "max_files": 20,
+    "max_folders": 20,
+    "max_lines": 250,
+    "gitignore": ".a0proj/\nvenv/\n**/__pycache__/\n**/node_modules/\n**/.git/\n"
+  }
+}

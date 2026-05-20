@@ -1,18 +1,18 @@
-"""EVOL Cycle Tool -- run full 5-phase evolution cycle."""
+"""EVOL Last Tool -- display latest EVOL cycle result."""
 import os
 import json
-import time
 from helpers.tool import Tool, Response
 
 
-def _format_cycle_result(result: dict, profile: str) -> str:
-    """Format cycle result as a readable markdown report."""
+def _format_last_result(result: dict, profile: str) -> str:
+    """Format last cycle result as a readable markdown report."""
     lines = []
-    lines.append(f"## 🧬 EVOL Cycle — `{profile}`")
+    lines.append(f"## 🧬 Latest EVOL Activity — `{profile}`")
     lines.append("")
     status = result.get("status", "?")
     duration = result.get("duration_seconds", 0)
-    lines.append(f"**Status:** {status}  |  **Duration:** {duration}s")
+    ts = result.get("timestamp", "")
+    lines.append(f"**Status:** {status}  |  **Duration:** {duration}s  |  **Timestamp:** {ts}")
     lines.append("")
     if status == "error":
         lines.append(f"Error: {result.get('error', 'unknown')}")
@@ -59,29 +59,27 @@ def _format_cycle_result(result: dict, profile: str) -> str:
     return "\n".join(lines)
 
 
-class EvolCycleTool(Tool):
-    async def execute(self, force: bool = False, **kwargs) -> Response:
+class EvolLastTool(Tool):
+    async def execute(self, **kwargs) -> Response:
         try:
             from usr.plugins.a0_evol.helpers.config import EvolConfig
-            from usr.plugins.a0_evol.helpers.engine import EvolEngine
             cfg = EvolConfig()
-            engine = EvolEngine(cfg)
-            result = engine.full_cycle(force=force)
-            profile = engine.cfg.profile or os.environ.get('EVOL_PROFILE', 'unknown')
-            evoldir = f'/a0/usr/agents/{profile}/evol'
-            os.makedirs(evoldir, exist_ok=True)
-            ts = time.strftime('%Y%m%d_%H%M%S')
-            filename = f'{evoldir}/cycle_{ts}.json'
-            with open(filename, 'w') as f:
-                json.dump(result, f, indent=2, default=str)
-
-            # Format rich markdown
-            markdown = _format_cycle_result(result, profile)
-            markdown += f"\n\n📁 Saved: `{filename}`\n\n<details><summary>Raw JSON</summary>\n\n```json\n{json.dumps(result, indent=2, default=str)}\n```\n</details>"
-
-            return Response(
-                message=markdown,
-                break_loop=False,
-            )
+            profile = cfg.profile or "unknown"
+            evol_log = os.path.join(cfg.profile_dir, "evol", "evol.jsonl")
+            if not os.path.exists(evol_log):
+                return Response(
+                    message=f"No EVOL activity yet for profile `{profile}`.\nRun `/evol cycle` to trigger.",
+                    break_loop=False,
+                )
+            with open(evol_log, "r") as f:
+                lines = f.readlines()
+            if not lines:
+                return Response(
+                    message=f"EVOL log empty for profile `{profile}`.",
+                    break_loop=False,
+                )
+            last = json.loads(lines[-1])
+            markdown = _format_last_result(last, profile)
+            return Response(message=markdown, break_loop=False)
         except Exception as e:
-            return Response(message=f"EVOL cycle error: {e}", break_loop=False)
+            return Response(message=f"EVOL last error: {e}", break_loop=False)

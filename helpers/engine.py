@@ -26,7 +26,7 @@ try:
     )
 except ImportError:
     from config import EvolConfig
-    from registry import absorb, reflect, explore, express, memorize, _utc_now
+    from registry import absorb, reflect, explore, express, memorize, _utc_now, _log_cycle_result
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -77,14 +77,14 @@ def run_cycle(
                 absorbed = _run_with_retry(absorb, cfg, phase_name="absorb")
             result["phases"]["absorb"] = {
                 "status": "ok",
-                "sources_count": len(absorbed.get("circuit_files", {})),
+                "sources_count": len(absorbed.get("identity_files", {})),
                 "data": absorbed,
             }
         except Exception as e:
             result["phases"]["absorb"] = {"status": "error", "error": str(e)}
             return {**result, "status": "error", "error": f"absorb failed: {e}"}
     else:
-        absorbed = {"profile": cfg.profile, "mode": cfg.mode, "circuit_files": {}, "session_summary": ""}
+        absorbed = {"profile": cfg.profile, "mode": cfg.mode, "identity_files": {}, "session_summary": ""}
         result["phases"]["absorb"] = {"status": "skipped"}
 
     # ── PHASE 2: REFLECT ──
@@ -101,9 +101,9 @@ def run_cycle(
             _run_phase_post_hook(cfg, "reflect", reflected, result)
         except Exception as e:
             result["phases"]["reflect"] = {"status": "error", "error": str(e)}
-            reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "circuit_health": {}}
+            reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "identity_health": {}}
     else:
-        reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "circuit_health": {}}
+        reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "identity_health": {}}
         result["phases"]["reflect"] = {"status": "skipped"}
 
     # ── PHASE 3: EXPLORE ──
@@ -182,10 +182,10 @@ def run_session_cycle(
     Differences from persistent:
       - No cooldown checks
       - No heartbeat, no cascade counters, no idle depth
-      - Absorb: latest session + role circuit files only
+      - Absorb: latest session + role identity files only
       - Express: synthesis style
       - Explore: limited queries
-      - Memorize: role-scoped — NEVER touches conductor circuit
+      - Memorize: role-scoped — NEVER touches conductor identity
     """
     t_start = time.time()
 
@@ -214,14 +214,14 @@ def run_session_cycle(
             absorbed = _absorb_session(cfg, session_id)
             result["phases"]["absorb"] = {
                 "status": "ok",
-                "sources_count": len(absorbed.get("circuit_files", {})),
+                "sources_count": len(absorbed.get("identity_files", {})),
                 "data": absorbed,
             }
         except Exception as e:
             result["phases"]["absorb"] = {"status": "error", "error": str(e)}
             return {**result, "status": "error", "error": f"absorb failed: {e}"}
     else:
-        absorbed = {"profile": cfg.profile, "circuit_files": {}, "session_summary": ""}
+        absorbed = {"profile": cfg.profile, "identity_files": {}, "session_summary": ""}
         result["phases"]["absorb"] = {"status": "skipped"}
 
     # ── PHASE 2: REFLECT ──
@@ -235,9 +235,9 @@ def run_session_cycle(
             }
         except Exception as e:
             result["phases"]["reflect"] = {"status": "error", "error": str(e)}
-            reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "circuit_health": {}}
+            reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "identity_health": {}}
     else:
-        reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "circuit_health": {}}
+        reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "identity_health": {}}
         result["phases"]["reflect"] = {"status": "skipped"}
 
     # ── PHASE 3: EXPRESS (synthesis style — express before explore in session) ──
@@ -301,21 +301,21 @@ def _safe_read(path) -> str:
 
 
 def _absorb_session(cfg: EvolConfig, session_id: Optional[str] = None) -> Dict[str, Any]:
-    """Session-mode absorb: latest session + role circuit files only."""
+    """Session-mode absorb: latest session + role identity files only."""
     data: Dict[str, Any] = {
         "profile": cfg.profile,
         "timestamp": _utc_now(),
         "session_summary": "",
-        "circuit_files": {},
+        "identity_files": {},
         "evolution_log": [],
         "session_id": session_id,
     }
 
-    for fname in ["SOUL.md", "AGENTS.md", "MEMORY.md"]:
-        path = cfg.get_circuit_path(fname)
+    for fname in ["agent.yaml", "prompts/agent.system.main.specifics.md"]:
+        path = cfg.get_identity_path(fname)
         content = _safe_read(path)
         if content:
-            data["circuit_files"][fname] = content[:6000]
+            data["identity_files"][fname] = content[:6000]
 
     sessions_dir = Path(cfg.profile_dir) / "sessions"
     if sessions_dir.exists():
@@ -358,7 +358,7 @@ def _absorb_global(cfg: EvolConfig) -> Dict[str, Any]:
         "profile": "global",
         "mode": "global",
         "timestamp": _utc_now(),
-        "circuit_files": {},
+        "identity_files": {},
         "session_summary": "",
         "evolution_log": [],
         "profiles_absorbed": [],
@@ -368,8 +368,8 @@ def _absorb_global(cfg: EvolConfig) -> Dict[str, Any]:
             pc = EvolConfig(profile=prof)
             pc.search_backend = cfg.search_backend
             a = absorb(pc)
-            for fn, content in a.get("circuit_files", {}).items():
-                combined["circuit_files"][f"{prof}/{fn}"] = content
+            for fn, content in a.get("identity_files", {}).items():
+                combined["identity_files"][f"{prof}/{fn}"] = content
             if a.get("session_summary"):
                 combined["session_summary"] += f"\n[{prof}] {a['session_summary'][:300]}"
             combined["evolution_log"].extend(a.get("evolution_log", [])[-5:])
@@ -429,9 +429,9 @@ def _touch_marker(cfg: EvolConfig, name: str):
 
 
 PHASE_RESULT_KEYS = {
-    "absorb": ["circuit_files", "session_summary", "timestamp"],
+    "absorb": ["identity_files", "session_summary", "timestamp"],
     "reflect": ["patterns", "anomalies", "recommended_action"],
-    "express": ["monologue", "mood", "insights", "portrait_prompt", "circuit_poem", "unanswered"],
+    "express": ["monologue", "mood", "insights", "portrait_prompt", "identity_poem", "unanswered"],
     "explore": ["queries", "results", "discoveries"],
     "memorize": ["items", "applied", "proposals"],
 }
@@ -622,7 +622,7 @@ class EvolEngine:
         if not force and not self._express_enabled:
             return {"status": "skipped", "reason": "express disabled"}
         try:
-            reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "circuit_health": {}}
+            reflected = {"patterns": [], "anomalies": [], "bridge_signals": [], "identity_health": {}}
             result = express(self.cfg, reflected)
             self._set_cooldown("express")
             self._phase_counts["explore"] = self._phase_counts.get("explore", 0) + 1
@@ -636,20 +636,20 @@ class EvolEngine:
         if not force and not self._reflect_enabled:
             return {"status": "skipped", "reason": "reflect disabled"}
         try:
-            circuit_files = {}
+            identity_files = {}
             session_summary = ""
             if self._material_buffer:
                 for tick in self._material_buffer:
                     if tick.get("type") == "absorb_tick":
                         for f in tick.get("files", []):
-                            if f not in circuit_files:
-                                circuit_files[f] = ""
+                            if f not in identity_files:
+                                identity_files[f] = ""
                         session_summary += tick.get("summary", "")
 
             absorbed = {
                 "profile": self.profile,
                 "mode": self.mode,
-                "circuit_files": circuit_files,
+                "identity_files": identity_files,
                 "session_summary": session_summary,
             }
             result = reflect(self.cfg, absorbed)
@@ -693,7 +693,7 @@ class EvolEngine:
             return {"status": "skipped", "reason": "memorize disabled"}
         try:
             reflected = {"patterns": [], "anomalies": [], "bridge_signals": []}
-            result = memorize(self.cfg, reflected, None, {"discoveries": [], "queries": []})
+            result = memorize(self.cfg, reflected, {}, {"discoveries": [], "queries": []})
             self._set_cooldown("memorize")
             return {"status": "ok", "data": result}
         except Exception as e:
@@ -730,7 +730,7 @@ class EvolEngine:
             self._material_buffer.append({
                 "type": "absorb_tick",
                 "timestamp": _utc_now(),
-                "files": list(ab.get("circuit_files", {}).keys()),
+                "files": list(ab.get("identity_files", {}).keys()),
                 "summary": ab.get("session_summary", "")[:1000],
             })
             self._phase_counts["reflect"] = self._phase_counts.get("reflect", 0) + 1

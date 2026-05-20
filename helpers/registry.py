@@ -19,6 +19,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+import yaml
+
 
 def _utc_now() -> str:
     """ISO 8601 UTC timestamp."""
@@ -148,7 +150,7 @@ def absorb(cfg) -> Dict[str, Any]:
     """
     Phase 1: Read everything that happened since last cycle.
 
-    Sources: circuit files (SOUL, AGENTS, MEMORY, IDENTITY),
+    Sources: agent.yaml and prompts/agent.system.main.specifics.md,
              session transcripts, evolution history.
     No LLM call — pure file I/O.
     """
@@ -156,18 +158,30 @@ def absorb(cfg) -> Dict[str, Any]:
         "profile": cfg.profile,
         "mode": cfg.mode,
         "timestamp": _utc_now(),
-        "circuit_files": {},
+        "identity_files": {},
         "session_summary": "",
         "evolution_log": [],
         "idle_depth": "fresh",
     }
 
-    # Read circuit files
-    for fname in ["SOUL.md", "AGENTS.md", "MEMORY.md", "IDENTITY.md"]:
-        path = cfg.get_circuit_path(fname)
-        content = _safe_read(path)
-        if content:
-            data["circuit_files"][fname] = content[:8000]
+    # Read identity sources
+    for fname in ["agent.yaml", "prompts/agent.system.main.specifics.md"]:
+        path = cfg.get_identity_path(fname)
+        raw = _safe_read(path)
+        if not raw:
+            continue
+        if path.endswith(".yaml"):
+            try:
+                parsed = yaml.safe_load(raw)
+                data["identity_files"][fname] = {
+                    "title": parsed.get("title", "") if isinstance(parsed, dict) else "",
+                    "description": parsed.get("description", "") if isinstance(parsed, dict) else "",
+                    "context": parsed.get("context", "") if isinstance(parsed, dict) else "",
+                }
+            except yaml.YAMLError:
+                data["identity_files"][fname] = raw[:8000]
+        else:
+            data["identity_files"][fname] = raw[:8000]
 
     # Determine idle depth
     last_cycle_path = Path(cfg.profile_dir) / "evol" / ".last_cycle"
@@ -239,20 +253,23 @@ Identify:
 1. **patterns** — recurring themes across cycles (5-8 items, each 5-15 words)
 2. **anomalies** — things that broke, shouldn't have happened, or are concerning (3-6 items)
 3. **bridge_signals** — insights the organism should internalize, each with a concept and weight 0.0-1.0 (3-6 items)
-4. **circuit_health** — per-file health assessment: SOUL.md (identity coherence), AGENTS.md (rule freshness), MEMORY.md (knowledge relevance), IDENTITY.md (self-model accuracy)
+4. **identity_health** — per-source health assessment: agent.yaml (identity coherence), prompts/agent.system.main.specifics.md (behavioral freshness), SKILL.md (knowledge relevance)
 5. **recommended_action** — one-line what to do next
 
-Output as JSON with keys: patterns, anomalies, bridge_signals, circuit_health, recommended_action.
+Output as JSON with keys: patterns, anomalies, bridge_signals, identity_health, recommended_action.
 Be brutal. Be honest. Truth over comfort."""
 
     # Build user prompt from absorbed data
     ctx_lines = [f"Profile: {profile}", f"Idle depth: {absorbed.get('idle_depth', 'fresh')}"]
 
-    circuit = absorbed.get("circuit_files", {})
-    if circuit:
-        ctx_lines.append("\n=== CIRCUIT FILES ===")
-        for fname, content in circuit.items():
-            ctx_lines.append(f"\n--- {fname} ---\n{content[:3000]}")
+    identity = absorbed.get("identity_files", {})
+    if identity:
+        ctx_lines.append("\n=== IDENTITY FILES ===")
+        for fname, content in identity.items():
+            if isinstance(content, dict):
+                ctx_lines.append(f"\n--- {fname} ---\ntitle: {content.get('title','')}\ndescription: {content.get('description','')}\ncontext: {content.get('context','')[:3000]}")
+            else:
+                ctx_lines.append(f"\n--- {fname} ---\n{str(content)[:3000]}")
 
     session = absorbed.get("session_summary", "")
     if session:
@@ -274,7 +291,7 @@ Be brutal. Be honest. Truth over comfort."""
             "patterns": result.get("patterns", []),
             "anomalies": result.get("anomalies", []),
             "bridge_signals": result.get("bridge_signals", []),
-            "circuit_health": result.get("circuit_health", {}),
+            "identity_health": result.get("identity_health", {}),
             "recommended_action": result.get("recommended_action", ""),
             "reflect_count": _increment_counter(cfg, "reflect"),
             "raw_response": raw[:1000],
@@ -285,7 +302,7 @@ Be brutal. Be honest. Truth over comfort."""
             "patterns": [f"Reflect failed: {str(e)[:100]}"],
             "anomalies": [],
             "bridge_signals": [],
-            "circuit_health": {},
+            "identity_health": {},
             "recommended_action": "retry reflect next cycle",
             "reflect_count": 0,
             "raw_response": "",
@@ -520,7 +537,7 @@ Output as JSON:
   "mood": "single word emotional state",
   "insights": ["3-5 key realizations"],
   "portrait_prompt": "image generation prompt for self-portrait",
-  "circuit_poem": "2-4 line poem about organism state",
+  "identity_poem": "2-4 line poem about organism state",
   "unanswered": ["2-4 questions can't answer yet"]
 }}
 
@@ -570,7 +587,7 @@ Style: {style}
             "mood": result.get("mood", "neutral"),
             "insights": result.get("insights", []),
             "portrait_prompt": result.get("portrait_prompt", ""),
-            "circuit_poem": result.get("circuit_poem", ""),
+            "identity_poem": result.get("identity_poem", ""),
             "unanswered": result.get("unanswered", []),
             "monologue_file": str(mono_file),
             "raw_response": raw[:1000],
@@ -581,7 +598,7 @@ Style: {style}
             "mood": "error",
             "insights": [],
             "portrait_prompt": "",
-            "circuit_poem": "",
+            "identity_poem": "",
             "unanswered": [],
             "monologue_file": "",
             "raw_response": "",
@@ -600,16 +617,22 @@ def memorize(
     scope: str = "profile",
 ) -> Dict[str, Any]:
     """
-    Phase 5: Score findings, route to three-tier memory, edit circuit files.
+    Phase 5: Score findings, route to three-tier memory, log identity edits.
 
     Three-tier routing:
-    - SOUL.md: weight ≥ 0.85 (identity changes)
-    - AGENTS.md: weight ≥ 0.75 (behavioral rules)
-    - MEMORY.md: weight ≥ 0.50 (knowledge)
+    - agent.yaml: weight ≥ 0.85 (identity changes) — logged, not written directly
+    - prompts/agent.system.main.specifics.md: weight ≥ 0.75 (behavioral rules) — logged
+    - SKILL.md: weight ≥ 0.50 (knowledge) — logged
     - Knowledge: weight < 0.50 (trivia)
 
     Edit modes: auto, suggested, readonly.
     """
+    # Guard against None
+    if expressed is None:
+        expressed = {}
+    if explored is None:
+        explored = {}
+
     # Collect all items to score
     items = []
 
@@ -646,10 +669,10 @@ def memorize(
     system_prompt = f"""You are {cfg.profile}'s memory consolidator. Score each item for permanent memory.
 
 Three-tier memory:
-- SOUL.md: identity-level changes (weight ≥ 0.85) — core identity, purpose
-- AGENTS.md: behavioral rules, new procedural gates (weight ≥ 0.75)
-- MEMORY.md: practical knowledge, techniques, gotchas (weight ≥ 0.50)
-- KNOWLEDGE: low-weight trivia (< 0.50) — written to knowledge/ not circuit
+- agent.yaml: identity-level changes (weight ≥ 0.85) — core identity, purpose (logged to identity_log)
+- prompts/agent.system.main.specifics.md: behavioral rules, new procedures (weight ≥ 0.75) (logged)
+- SKILL.md: practical knowledge, techniques, gotchas (weight ≥ 0.50) (logged)
+- KNOWLEDGE: low-weight trivia (< 0.50) — written to knowledge/ not identity
 
 For each item, output:
 - adjusted_weight: your assessment of true importance (0.0-1.0)
@@ -660,7 +683,7 @@ For each item, output:
 Output as JSON: {{"scored": [{{"idx": 0, "adjusted_weight": 0.75, "target_tier": "memory", "edit_content": "...", "reason": "..."}}]}}
 
 Edit mode: {cfg.edit_mode}
-{'Write directly to circuit files.' if cfg.edit_mode == 'auto' else 'Log proposals without writing.' if cfg.edit_mode == 'suggested' else 'Observation only, no writes.'}"""
+{'Write directly to identity files.' if cfg.edit_mode == 'auto' else 'Log proposals without writing.' if cfg.edit_mode == 'suggested' else 'Observation only, no writes.'}"""
 
     user_prompt = json.dumps([{ "idx": i, **item} for i, item in enumerate(items)], default=str)
 
@@ -684,7 +707,7 @@ Edit mode: {cfg.edit_mode}
                         "content": content, "reason": reason}
 
             if cfg.edit_mode == "auto" and adj_weight >= 0.50 and content:
-                _apply_circuit_edit(cfg, target, content, scope)
+                _apply_identity_edit(cfg, target, content, scope)
                 applied.append(proposal)
             else:
                 proposals.append(proposal)
@@ -720,13 +743,13 @@ Edit mode: {cfg.edit_mode}
                         "content": content, "reason": "fallback heuristic"}
 
             if cfg.edit_mode == "auto" and adj_w >= 0.50 and content:
-                _apply_circuit_edit(cfg, target, content, scope)
+                _apply_identity_edit(cfg, target, content, scope)
                 applied.append(proposal)
             else:
                 proposals.append(proposal)
 
     return {
-        "items": len(items),
+        "items": items,
         "applied": applied,
         "proposals": proposals,
         "fallback_used": fallback_used,
@@ -737,62 +760,46 @@ Edit mode: {cfg.edit_mode}
 # CIRCUIT EDIT HELPERS
 # ═══════════════════════════════════════════════════════════════════
 
-def _apply_circuit_edit(cfg, tier: str, content: str, scope: str = "profile"):
-    """Write a memory item to the appropriate circuit file."""
+def _apply_identity_edit(cfg, tier: str, content: str, scope: str = "profile"):
+    """Log a memory item to the identity log (never edit identity source files directly)."""
     if scope == "role":
-        # Session mode: only write to MEMORY.md, never SOUL/AGENTS/IDENTITY
         if tier in ("soul", "agents"):
-            tier = "memory"  # demote to safe tier
+            tier = "memory"   # demote to safe tier
 
-    file_map = {
-        "soul": "SOUL.md",
-        "agents": "AGENTS.md",
-        "memory": "MEMORY.md",
-        "knowledge": None,  # handled separately via knowledge.py
+    log_path = cfg.get_evol_state_path("identity_log.jsonl")
+    entry = {
+        "timestamp": _utc_now(),
+        "tier": tier,
+        "scope": scope,
+        "content": content[:200],
     }
-
-    fname = file_map.get(tier)
-    if not fname:
-        return
-
-    path = Path(cfg.get_circuit_path(fname))
-    if not path.exists():
-        return
-
     try:
-        existing = path.read_text()
-    except OSError:
-        return
-
-    # Append evolution log entry
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    entry = f"\n| {date_str} | EVOL-automated | {content[:200]} |"
-
-    # Write to file
-    try:
-        with open(path, "a") as f:
-            f.write(entry + "\n")
+        with open(log_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
     except OSError:
         pass
 
 
 def _increment_counter(cfg, phase: str) -> int:
-    """Increment a phase counter in SOUL.md reflect_count."""
-    path = Path(cfg.get_circuit_path("SOUL.md"))
-    if not path.exists():
-        return 0
+    """Increment a phase counter in evol/counters.json."""
+    counters_path = cfg.get_evol_state_path("counters.json")
+    counters: Dict[str, int] = {}
     try:
-        content = path.read_text()
-        match = re.search(rf"{phase}_count[:\s]*(\d+)", content)
-        if match:
-            current = int(match.group(1))
-            new_count = current + 1
-            content = content.replace(match.group(0), f"{phase}_count: {new_count}")
-            path.write_text(content)
-            return new_count
-    except Exception:
+        if counters_path.exists():
+            counters = json.loads(counters_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        counters = {}
+
+    current = counters.get(phase, 0)
+    new_count = current + 1
+    counters[phase] = new_count
+
+    try:
+        counters_path.write_text(json.dumps(counters))
+    except OSError:
         pass
-    return 0
+
+    return new_count
 
 
 # ═══════════════════════════════════════════════════════════════════

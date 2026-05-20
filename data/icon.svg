@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64">
+  <defs>
+    <linearGradient id="helix1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7C4DFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E040FB;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="helix2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#00E5FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#76FF03;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Strand 1 -->
+  <path d="M20,10 Q80,40 20,90" stroke="url(#helix1)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M80,10 Q20,40 80,90" stroke="url(#helix2)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Base pairs -->
+  <line x1="35" y1="20" x2="65" y2="20" stroke="#fff" stroke-width="1.5"/>
+  <line x1="30" y1="40" x2="70" y2="40" stroke="#fff" stroke-width="1.5"/>
+  <line x1="25" y1="60" x2="75" y2="60" stroke="#fff" stroke-width="1.5"/>
+  <line x1="30" y1="80" x2="70" y2="80" stroke="#fff" stroke-width="1.5"/>
+</svg>

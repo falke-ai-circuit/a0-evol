@@ -97,5 +97,5 @@ def _format_result(label: str, data: Dict[str, Any]) -> str:
         return f"{label}: SKIPPED — {data.get('reason', 'unknown')}"
     else:
         inner = data.get("data", {})
-        summary = {k: v for k, v in inner.items() if k not in ("raw_response", "data", "circuit_files", "session_summary")}
+        summary = {k: v for k, v in inner.items() if k not in ("raw_response", "data", "identity_files", "session_summary")}
         return f"{label}: OK\n```json\n{json.dumps(summary, indent=2, default=str)[:1500]}\n```"

@@ -1,7 +1,7 @@
 """
 EVOL Configuration — Profile-Aware, Agent Zero-Integrated.
 
-Per-phase model control, edit modes, circuit-aware weights.
+Per-phase model control, edit modes, identity-aware weights.
 Load order (last wins):
   1. Hardcoded defaults
   2. <profile_dir>/evol.json
@@ -65,33 +65,29 @@ class PhaseModelConfig:
 # ── Circuit file weight configuration ──────────────────────────────
 
 @dataclass
-class CircuitWeight:
+class IdentityWeight:
     path: str
     weight: float
     role: str
 
 
-DEFAULT_CIRCUIT_WEIGHTS: Dict[str, List[CircuitWeight]] = {
+DEFAULT_IDENTITY_WEIGHTS: Dict[str, List[IdentityWeight]] = {
     "conductor": [
-        CircuitWeight("SOUL.md", 1.00, "identity"),
-        CircuitWeight("AGENTS.md", 0.95, "behavior"),
-        CircuitWeight("MEMORY.md", 0.65, "knowledge"),
-        CircuitWeight("IDENTITY.md", 0.90, "identity"),
+        IdentityWeight("agent.yaml", 1.00, "identity"),
+        IdentityWeight("prompts/agent.system.main.specifics.md", 0.95, "behavior"),
     ],
     "default": [
-        CircuitWeight("SOUL.md", 0.90, "identity"),
-        CircuitWeight("AGENTS.md", 0.85, "behavior"),
-        CircuitWeight("MEMORY.md", 0.80, "knowledge"),
-        CircuitWeight("SKILL.md", 0.70, "knowledge"),
+        IdentityWeight("agent.yaml", 0.90, "identity"),
+        IdentityWeight("prompts/agent.system.main.specifics.md", 0.85, "behavior"),
+        IdentityWeight("SKILL.md", 0.80, "knowledge"),
     ],
     "shadow": [
-        CircuitWeight("SOUL.md", 0.95, "identity"),
-        CircuitWeight("AGENTS.md", 0.60, "behavior"),
-        CircuitWeight("MEMORY.md", 0.75, "knowledge"),
+        IdentityWeight("agent.yaml", 0.95, "identity"),
+        IdentityWeight("prompts/agent.system.main.specifics.md", 0.60, "behavior"),
     ],
 }
 
-UNIVERSAL_CIRCUIT_FILES = ["SOUL.md", "AGENTS.md", "MEMORY.md", "IDENTITY.md"]
+IDENTITY_FILES = ["agent.yaml", "prompts/agent.system.main.specifics.md", "SKILL.md"]
 
 
 # ── Provider → Endpoint mapping ────────────────────────────────────
@@ -194,7 +190,7 @@ class EvolConfig:
         "express": PhaseModelConfig(temperature=0.9, max_tokens=4096),
         "memorize": PhaseModelConfig(temperature=0.3, max_tokens=4096),
     })
-    circuit_weights: List[CircuitWeight] = field(default_factory=list)
+    identity_weights: List[IdentityWeight] = field(default_factory=list)
     cooldown_minutes: int = 240
     express_cooldown_hours: int = 12
     idle_trigger_minutes: int = 30
@@ -239,7 +235,7 @@ class EvolConfig:
             "express": PhaseModelConfig(temperature=0.9, max_tokens=4096),
             "memorize": PhaseModelConfig(temperature=0.3, max_tokens=4096),
         }
-        self.circuit_weights = []
+        self.identity_weights = []
         self.cooldown_minutes = 240
         self.express_cooldown_hours = 12
         self.idle_trigger_minutes = 30
@@ -285,7 +281,7 @@ class EvolConfig:
         if mode:
             self.mode = mode  # type: ignore
 
-        self._load_circuit_weights()
+        self._load_identity_weights()
 
     def _detect_profile(self) -> str:
         env = os.environ.get("EVOL_PROFILE", "")
@@ -383,9 +379,9 @@ class EvolConfig:
             if not ("..." in sak or sak == "***"):
                 self.search_api_key = sak
 
-        if "circuit_weights" in data:
-            self.circuit_weights = [
-                CircuitWeight(**w) for w in data["circuit_weights"]
+        if "identity_weights" in data:
+            self.identity_weights = [
+                IdentityWeight(**w) for w in data["identity_weights"]
             ]
 
     def _save_to_file(self):
@@ -433,11 +429,11 @@ class EvolConfig:
             if os.environ.get(f"EVOL_{phase_upper}_API_KEY"):
                 pm.api_key = os.environ[f"EVOL_{phase_upper}_API_KEY"]
 
-    def _load_circuit_weights(self):
-        if self.circuit_weights:
+    def _load_identity_weights(self):
+        if self.identity_weights:
             return
-        weights = DEFAULT_CIRCUIT_WEIGHTS.get(self.profile) or DEFAULT_CIRCUIT_WEIGHTS["default"]
-        self.circuit_weights = weights.copy()
+        weights = DEFAULT_IDENTITY_WEIGHTS.get(self.profile) or DEFAULT_IDENTITY_WEIGHTS["default"]
+        self.identity_weights = weights.copy()
 
     def get_phase_model(self, phase: str) -> PhaseModelConfig:
         return self.phase_models.get(phase, PhaseModelConfig())
@@ -450,16 +446,21 @@ class EvolConfig:
             return endpoint["base_url"]
         return ""
 
-    def get_circuit_weight(self, filename: str) -> float:
-        for cw in self.circuit_weights:
-            if cw.path == filename:
-                return cw.weight
-        if filename in UNIVERSAL_CIRCUIT_FILES:
+    def get_identity_weight(self, filename: str) -> float:
+        for iw in self.identity_weights:
+            if iw.path == filename:
+                return iw.weight
+        if filename in IDENTITY_FILES:
             return 0.50
         return 0.30
 
-    def get_circuit_path(self, filename: str) -> str:
+    def get_identity_path(self, filename: str) -> str:
         return str(Path(self.profile_dir) / filename)
+
+    def get_evol_state_path(self, filename: str) -> Path:
+        p = Path(self.profile_dir) / "evol" / filename
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
 
     def is_phase_enabled(self, phase: str) -> bool:
         return self.enabled and self.phase_enabled.get(phase, True)
@@ -497,9 +498,9 @@ class EvolConfig:
                 phase: pm.to_dict() for phase, pm in self.phase_models.items()
             },
             "global_profiles": self.global_profiles,
-            "circuit_weights": [
-                {"path": cw.path, "weight": cw.weight, "role": cw.role}
-                for cw in self.circuit_weights
+            "identity_weights": [
+                {"path": iw.path, "weight": iw.weight, "role": iw.role}
+                for iw in self.identity_weights
             ],
         }
 

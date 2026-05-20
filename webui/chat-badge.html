@@ -1,0 +1,295 @@
+<html>
+<head>
+<title>EVOL Chat Integration</title>
+<script type="module">
+import { store } from "/components/plugins/plugin-settings-store.js";
+</script>
+<style>
+.evol-bottom-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.evol-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: #1a1a2e;
+  border: 1px solid #7C4DFF;
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 320px;
+  max-width: 480px;
+  box-shadow: 0 4px 24px rgba(124, 77, 255, 0.3);
+  z-index: 9999;
+}
+.evol-popover-header {
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.evol-popover-close {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.evol-phase-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.evol-phase-btn {
+  padding: 4px 10px;
+  background: #2d2d44;
+  color: #b39ddb;
+  border: 1px solid #7C4DFF;
+  border-radius: 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.evol-phase-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.evol-phase-btn.full-cycle {
+  background: linear-gradient(135deg, #7C4DFF, #E040FB);
+  color: white;
+  border: none;
+  font-weight: bold;
+}
+.evol-running {
+  color: #E040FB;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.evol-result {
+  max-height: 300px;
+  overflow-y: auto;
+  background: #0d0d1a;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 10px;
+  color: #ccc;
+  white-space: pre-wrap;
+  font-family: monospace;
+  border: 1px solid #333;
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BADGE (existing Alpine.js component) -->
+<div x-data="{
+    enabled: false,
+    profile: '',
+    async checkStatus() {
+        try {
+            const resp = await fetch('/plugins', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    action: 'execute_tool',
+                    plugin_name: 'a0_evol',
+                    tool_name: 'evol_status',
+                    args: {}
+                })
+            });
+            const data = await resp.json();
+            if (data.ok && data.result) {
+                const msg = data.result.message || '';
+                this.enabled = msg.includes('Enabled: True') || msg.includes('Enabled: 1');
+                const profileMatch = msg.match(/Profile:\s*(\w+)/);
+                this.profile = profileMatch ? profileMatch[1] : '';
+            }
+        } catch(e) {}
+    }
+}" x-init="checkStatus()">
+    <template x-if="enabled">
+        <a href="#" @click.prevent="window.openModal?.('/plugins/a0_evol/webui/status.html')"
+           title="EVOL Active — Click for status"
+           style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+                  background: linear-gradient(135deg, #7C4DFF, #E040FB);
+                  color: white; border-radius: 12px; font-size: 11px; font-weight: bold;
+                  text-decoration: none; cursor: pointer; margin-left: 8px;">
+            <span style="font-size: 14px;">🧬</span>
+            <span>EVOL</span>
+        </a>
+    </template>
+</div>
+
+<!-- BOTTOM BUTTON INJECTION (plain JS) -->
+<script>
+(function injectEvolBottomButton() {
+    const PHASES = ['absorb', 'reflect', 'speak', 'explore', 'memorize', 'cycle'];
+    const PHASE_LABELS = {
+        absorb: '📥 Absorb',
+        reflect: '🪞 Reflect',
+        speak: '🗣️ Express',
+        explore: '🌐 Explore',
+        memorize: '💾 Memorize',
+        cycle: '🧬 Full Cycle'
+    };
+
+    let popover = null;
+    let runningPhase = '';
+    let isOpen = false;
+
+    function closePopover() {
+        if (popover) {
+            popover.remove();
+            popover = null;
+            isOpen = false;
+        }
+    }
+
+    function handleClickOutside(e) {
+        if (popover && isOpen && !popover.contains(e.target) && !e.target.closest('.evol-bottom-btn-trigger')) {
+            closePopover();
+        }
+    }
+
+    async function triggerPhase(phase) {
+        if (runningPhase) return; // already running
+
+        runningPhase = phase;
+        updateUI(phase, 'Running ' + phase + '...', true);
+
+        try {
+            const resp = await fetch('/plugins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'execute_tool',
+                    plugin_name: 'a0_evol',
+                    tool_name: 'evol_' + phase,
+                    args: {}
+                })
+            });
+            const data = await resp.json();
+            let resultText;
+            if (data.ok && data.result) {
+                resultText = data.result.message || JSON.stringify(data.result);
+            } else {
+                resultText = 'Error: ' + (data.error || 'unknown');
+            }
+            runningPhase = '';
+            updateUI('', resultText, false);
+        } catch (e) {
+            runningPhase = '';
+            updateUI('', 'Error: ' + e.message, false);
+        }
+    }
+
+    function updateUI(phase, result, isRunning) {
+        if (!popover) return;
+        const runningDiv = popover.querySelector('.evol-running');
+        const resultDiv = popover.querySelector('.evol-result');
+        const buttons = popover.querySelectorAll('.evol-phase-btn');
+
+        if (isRunning) {
+            runningDiv.style.display = 'block';
+            runningDiv.textContent = '⏳ Running ' + phase + '...';
+            buttons.forEach(b => b.disabled = true);
+        } else {
+            runningDiv.style.display = 'none';
+            buttons.forEach(b => b.disabled = false);
+        }
+        if (result) {
+            resultDiv.textContent = result;
+            resultDiv.style.display = 'block';
+        } else {
+            resultDiv.style.display = 'none';
+        }
+    }
+
+    function createPopover() {
+        if (popover) return popover;
+
+        const div = document.createElement('div');
+        div.className = 'evol-popover';
+        div.innerHTML = `
+            <div class="evol-popover-header">
+                <span>🧬 Manual Phase Trigger</span>
+                <button class="evol-popover-close" title="Close">✕</button>
+            </div>
+            <div class="evol-phase-buttons">
+                ${PHASES.map(phase => {
+                    const cls = phase === 'cycle' ? 'evol-phase-btn full-cycle' : 'evol-phase-btn';
+                    return `<button class="${cls}" data-phase="${phase}">${PHASE_LABELS[phase]}</button>`;
+                }).join('')}
+            </div>
+            <div class="evol-running" style="display:none;"></div>
+            <div class="evol-result" style="display:none;"></div>
+        `;
+
+        // Event listeners
+        div.querySelector('.evol-popover-close').addEventListener('click', closePopover);
+        div.querySelectorAll('.evol-phase-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const phase = btn.dataset.phase;
+                if (phase) triggerPhase(phase);
+            });
+        });
+
+        return div;
+    }
+
+    function togglePopover(container) {
+        if (isOpen) {
+            closePopover();
+            return;
+        }
+        popover = createPopover();
+        container.appendChild(popover);
+        isOpen = true;
+        // Reset UI state
+        updateUI('', '', false);
+    }
+
+    const observer = new MutationObserver(() => {
+        const target = document.querySelector('.chat-bottom-actions-bar');
+        if (!target || target.querySelector('.evol-bottom-wrapper')) return;
+
+        // Create wrapper and button
+        const wrapper = document.createElement('span');
+        wrapper.className = 'evol-bottom-wrapper';
+
+        const button = document.createElement('button');
+        button.className = 'evol-bottom-btn-trigger';
+        button.setAttribute('type', 'button');
+        button.style.cssText = `
+            display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+            background: linear-gradient(135deg, #7C4DFF, #E040FB);
+            color: white; border: none; border-radius: 12px;
+            font-size: 11px; font-weight: bold; cursor: pointer;
+            margin-left: 8px;
+        `;
+        button.innerHTML = `<span style="font-size: 14px;">🧬</span><span>EVOL</span>`;
+
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            togglePopover(wrapper);
+        });
+
+        wrapper.appendChild(button);
+        target.appendChild(wrapper);
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Click outside listener
+    document.addEventListener('click', handleClickOutside);
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+{
+  "updated_at": "2026-05-20T07:07:06.900203+00:00",
+  "file_count": 31,
+  "file_hashes": {
+    "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "project_knowledge.json": "22574afbf002631edef0810f4b2cf9e2859a76c7f9325c4a7cb3565d8a57839f",
+    "plugin.yaml": "5fb22ebdc3efb1b68e142f5ea17260e30bdfac12dcc4e7ad96f51e283d07af97",
+    ".phase1_plan.md": "4895ef10848ad04a4eb1c2e09d65146c07a149542d75d06116aa91ec4800a15c",
+    "tools/evol_cycle.py": "493950db4e4084e10b2376a57ed1dc16759121f03bb33ef321b474ef21566d9a",
+    "tools/evol_last.py": "d08009c7ad031a7acd61e811fce7ac09e55e2bbd43f14936634edf9145c7f992",
+    "tools/evol_material.py": "c29a11730f2b6a5ca9e86ae620052911eaf11876ee4300f050a373ce974088cf",
+    "tools/evol_explore.py": "d909e7666fbcb701a59ac0af6681fcff6c4798ba997d2f016f733eb9826b622a",
+    "tools/evol_config.py": "deca91312cdbf25605c66467730e1f92ae9e7bfebc92321ba351c83a6b8045ef",
+    "tools/evol_status.py": "e227698046dfad2a35c0fb4809219f4259668fcda511045a232d33300ece008e",
+    "tools/evol_speak.py": "e34bd699c288f16d6b6ea73c25c1823790a6732f4c4ee90883e14303a28a2f9d",
+    "tools/evol_task_end.py": "9aa8227b2ae5249cce842d9ff4cd2a3f9c197ba35bcbd508ec832855206cdac9",
+    "tools/evol_reflect.py": "c4a5a0bac81c2ca2e026d0e534fbc7de4fc4c824632a84e86564a81f5e03dab8",
+    "tools/evol_memorize.py": "e8287ed939076e01e13eab11e422590f2a37b09eaf00cfa97c26b9d083919df3",
+    "tools/evol_absorb.py": "a77e9b834654e10fa80ea821d33a79afc24f7400ac906cf6ca6c9a7816238a58",
+    "tests/test_all_phases.py": "154879c5ac5b99d8f7d45add276a3e5c684a32ca54fe60c1005d960af270e5be",
+    "webui/chat-badge.html": "b0f07e1beb9b4d8f2002ddd653b049c33ed5ffab6afd0ca6d7dc18c8af8b40e5",
+    "webui/status.html": "8e5b8bfcac5a2524a39c2e0a79a32c3556e0c026be6a62b7547c00b4b98917a6",
+    "webui/chat-input-bottom-actions-end.html": "49f9670cab9c88c4eb9cfea68bae520c30872ce64aec4360448ae8b56df833d9",
+    "webui/thumbnail.png": "2de40b2a2a4b0691ffa05bbc66cf47bc1bd4b9bd60deaba4d4956b0337042dfa",
+    "webui/config.html": "da0f297e8b52480602705ad74d81053c62c5e7656be51aa86957836f473d3064",
+    "configs/default_evol.json": "23ed1461b5a0f97b73322e2440f6563d81f7bdd9a2e3876b7167b77ed3092646",
+    "data/icon.svg": "2f08b3e428cbca1c650dd81ec2c221cf61d109d10ce5472d19857ad5f2ebede7",
+    "helpers/engine.py": "a6122180873cfbabd997dfd63c7688b4a757339664d7340f038c3fa4fa1e28a0",
+    "helpers/registry.py": "e0b6fc9f9fb73097ebc2b141af8d24cd5effd37748bca050768bab4ae50cd2cb",
+    "helpers/knowledge.py": "30ed02f168bcd87b6b09d83975c959676d683febd872c7bb3bddfdee96c08e13",
+    "helpers/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "helpers/commands.py": "7c34b8ce32c5640799209e82d562a134cc6b1c087e2d5bc07648c941b0604fba",
+    "helpers/config.py": "457f89d3407d832fc20a9eede4ff56c3814b7cc1c732832f97543effd3e95658",
+    "helpers/stores.py": "a5790e44e8533d6002adbac8850870756584218fa066b1ac06606b1c33980efe",
+    "extensions/webui/initFw_end/evol-bottom-bar.js": "6f4e95dae9232db82547b56a4c2560152d536724fd3b09efa3a2d238537e3da9"
+  },
+  "recent_changes": [
+    "MODIFIED project_knowledge.json",
+    "MODIFIED plugin.yaml",
+    "ADDED .phase1_plan.md",
+    "MODIFIED tools/evol_speak.py",
+    "MODIFIED tools/evol_reflect.py",
+    "MODIFIED tools/evol_absorb.py",
+    "ADDED tests/test_all_phases.py",
+    "ADDED webui/chat-input-bottom-actions-end.html",
+    "MODIFIED configs/default_evol.json",
+    "MODIFIED helpers/engine.py",
+    "MODIFIED helpers/registry.py",
+    "MODIFIED helpers/knowledge.py",
+    "MODIFIED helpers/commands.py",
+    "MODIFIED helpers/config.py"
+  ],
+  "gotchas": [
+    "engine.py has dual import paths (try/except ImportError) \u2014 standalone tests need correct sys.path setup",
+    "registry.py memorize() has None guards for expressed/explored \u2014 must test with real LLM calls"
+  ],
+  "hot_cache": [
+    {
+      "path": "helpers/knowledge.py",
+      "mtime": "2026-05-20T07:01:35.356992+00:00"
+    },
+    {
+      "path": "helpers/config.py",
+      "mtime": "2026-05-20T07:01:13.554914+00:00"
+    },
+    {
+      "path": "helpers/registry.py",
+      "mtime": "2026-05-20T07:00:56.614853+00:00"
+    },
+    {
+      "path": "helpers/engine.py",
+      "mtime": "2026-05-20T06:59:12.212497+00:00"
+    },
+    {
+      "path": "tools/evol_speak.py",
+      "mtime": "2026-05-20T06:55:38.361845+00:00"
+    },
+    {
+      "path": "tools/evol_absorb.py",
+      "mtime": "2026-05-20T06:54:29.200487+00:00"
+    },
+    {
+      "path": "helpers/commands.py",
+      "mtime": "2026-05-20T06:47:32.566327+00:00"
+    },
+    {
+      "path": "configs/default_evol.json",
+      "mtime": "2026-05-20T06:47:21.367269+00:00"
+    },
+    {
+      "path": "tests/test_all_phases.py",
+      "mtime": "2026-05-20T06:46:23.613968+00:00"
+    },
+    {
+      "path": "tools/evol_reflect.py",
+      "mtime": "2026-05-20T06:45:59.521843+00:00"
+    }
+  ],
+  "project_path": "/a0/usr/projects/a0-evol"
+}

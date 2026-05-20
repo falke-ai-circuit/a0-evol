@@ -1,0 +1,173 @@
+<html>
+<head>
+<title>EVOL Bottom Bar</title>
+<style>
+.evol-bottom-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.evol-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: #1a1a2e;
+  border: 1px solid #7C4DFF;
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 300px;
+  max-width: 440px;
+  box-shadow: 0 4px 24px rgba(124, 77, 255, 0.35);
+  z-index: 9999;
+}
+.evol-popover-header {
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.evol-popover-close {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.evol-popover-close:hover { color: #E040FB; }
+.evol-phase-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.evol-phase-btn {
+  padding: 5px 10px;
+  background: #2d2d44;
+  color: #b39ddb;
+  border: 1px solid #7C4DFF;
+  border-radius: 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.evol-phase-btn:hover {
+  background: #3d3d5c;
+  color: #E040FB;
+}
+.evol-phase-btn.full-cycle {
+  background: linear-gradient(135deg, #7C4DFF, #E040FB);
+  color: white;
+  border: none;
+  font-weight: bold;
+}
+.evol-phase-btn.full-cycle:hover {
+  opacity: 0.9;
+}
+.evol-running {
+  color: #E040FB;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.evol-result {
+  max-height: 300px;
+  overflow-y: auto;
+  background: #0d0d1a;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 10px;
+  color: #ccc;
+  white-space: pre-wrap;
+  font-family: monospace;
+  border: 1px solid #333;
+}
+</style>
+</head>
+<body>
+
+<div x-data="{
+    showPopover: false,
+    running: '',
+    result: '',
+
+    togglePopover() {
+        this.showPopover = !this.showPopover;
+        if (!this.showPopover) {
+            this.result = '';
+            this.running = '';
+        }
+    },
+
+    closePopover() {
+        this.showPopover = false;
+        this.result = '';
+        this.running = '';
+    },
+
+    async runPhase(phase) {
+        this.running = phase;
+        this.result = 'Running ' + phase + '...';
+        
+        try {
+            const resp = await fetch('/plugins', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    action: 'execute_tool',
+                    plugin_name: 'a0_evol',
+                    tool_name: 'evol_' + phase,
+                    args: {}
+                })
+            });
+            const data = await resp.json();
+            if (data.ok && data.result) {
+                this.result = data.result.message || JSON.stringify(data.result, null, 2);
+            } else {
+                this.result = 'Error: ' + (data.error || 'unknown');
+            }
+        } catch(e) {
+            this.result = 'Error: ' + e.message;
+        }
+        this.running = '';
+    }
+}" @click.outside="closePopover()"
+   @keydown.escape.window="closePopover()"
+   style="display: contents;">
+
+    <button type="button" class="text-button" @click.stop="togglePopover()"
+            style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px;
+                   background: linear-gradient(135deg, #7C4DFF, #E040FB);
+                   color: white; border: none; border-radius: 12px;
+                   font-size: 0.6rem; font-weight: bold; cursor: pointer;
+                   opacity: 0.9; transition: opacity 0.2s;"
+            @mouseenter="$el.style.opacity='1'"
+            @mouseleave="$el.style.opacity='0.9'">
+        <span style="font-size: 14px;">🧬</span>
+        <span>EVOL</span>
+    </button>
+
+    <div x-show="showPopover" x-transition.opacity.duration.150ms
+         class="evol-popover" @click.stop="">
+        <div class="evol-popover-header">
+            <span>🧬 Manual Phase Trigger</span>
+            <button class="evol-popover-close" @click="closePopover()">✕</button>
+        </div>
+        <div class="evol-phase-buttons">
+            <button class="evol-phase-btn" @click="runPhase('absorb')">📥 Absorb</button>
+            <button class="evol-phase-btn" @click="runPhase('reflect')">🪞 Reflect</button>
+            <button class="evol-phase-btn" @click="runPhase('speak')">🗣️ Express</button>
+            <button class="evol-phase-btn" @click="runPhase('explore')">🌐 Explore</button>
+            <button class="evol-phase-btn" @click="runPhase('memorize')">💾 Memorize</button>
+            <button class="evol-phase-btn full-cycle" @click="runPhase('cycle')">🧬 Full Cycle</button>
+        </div>
+        <div x-show="running" class="evol-running" x-text="'⏳ Running ' + running + '...'"></div>
+        <div x-show="result" class="evol-result" x-text="result"></div>
+    </div>
+
+</div>
+
+</body>
+</html>
