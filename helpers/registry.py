@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
+import asyncio
+from plugins._memory.helpers.memory import Memory
 
 
 def _utc_now() -> str:
@@ -617,13 +619,13 @@ def memorize(
     scope: str = "profile",
 ) -> Dict[str, Any]:
     """
-    Phase 5: Score findings, route to three-tier memory, log identity edits.
+    Phase 5: Score findings, route to three-tier memory, save via memory_save.
 
-    Three-tier routing:
-    - agent.yaml: weight ≥ 0.85 (identity changes) — logged, not written directly
-    - prompts/agent.system.main.specifics.md: weight ≥ 0.75 (behavioral rules) — logged
-    - SKILL.md: weight ≥ 0.50 (knowledge) — logged
-    - Knowledge: weight < 0.50 (trivia)
+    Three-tier routing now maps to memory metadata tiers:
+    - agent.yaml -> "identity" (>=0.85)
+    - specifics.md -> "behavior" (>=0.75)
+    - SKILL.md -> "knowledge" (>=0.50)
+    - below 0.50 -> "knowledge" (trivia)
 
     Edit modes: auto, suggested, readonly.
     """
@@ -669,18 +671,18 @@ def memorize(
     system_prompt = f"""You are {cfg.profile}'s memory consolidator. Score each item for permanent memory.
 
 Three-tier memory:
-- agent.yaml: identity-level changes (weight ≥ 0.85) — core identity, purpose (logged to identity_log)
-- prompts/agent.system.main.specifics.md: behavioral rules, new procedures (weight ≥ 0.75) (logged)
-- SKILL.md: practical knowledge, techniques, gotchas (weight ≥ 0.50) (logged)
-- KNOWLEDGE: low-weight trivia (< 0.50) — written to knowledge/ not identity
+- agent.yaml: identity-level changes (weight ≥ 0.85) — core identity, purpose
+- prompts/agent.system.main.specifics.md: behavioral rules, new procedures (weight ≥ 0.75)
+- SKILL.md: practical knowledge, techniques, gotchas (weight ≥ 0.50)
+- TRIVIA: low-weight trivia (< 0.50)
 
 For each item, output:
 - adjusted_weight: your assessment of true importance (0.0-1.0)
-- target_tier: "soul", "agents", "memory", or "knowledge"
-- edit_content: what to actually write to the file (1-3 sentences, or empty if not important)
+- target_tier: "identity", "behavior", "knowledge", or "trivia"
+- edit_content: what to write to memory (1-3 sentences, or empty if not important)
 - reason: one-line why
 
-Output as JSON: {{"scored": [{{"idx": 0, "adjusted_weight": 0.75, "target_tier": "memory", "edit_content": "...", "reason": "..."}}]}}
+Output as JSON: {{"scored": [{{"idx": 0, "adjusted_weight": 0.75, "target_tier": "knowledge", "edit_content": "...", "reason": "..."}}]}}
 
 Edit mode: {cfg.edit_mode}
 {'Write directly to identity files.' if cfg.edit_mode == 'auto' else 'Log proposals without writing.' if cfg.edit_mode == 'suggested' else 'Observation only, no writes.'}"""
@@ -707,7 +709,7 @@ Edit mode: {cfg.edit_mode}
                         "content": content, "reason": reason}
 
             if cfg.edit_mode == "auto" and adj_weight >= 0.50 and content:
-                _apply_identity_edit(cfg, target, content, scope)
+                _apply_identity_edit(cfg, target, content, scope, weight=adj_weight)
                 applied.append(proposal)
             else:
                 proposals.append(proposal)
@@ -724,26 +726,26 @@ Edit mode: {cfg.edit_mode}
             target = "knowledge"
             adj_w = w
             if t == "bridge_signal" and len(content) > 10:
-                target = "soul" if w >= 0.85 else "memory"
+                target = "identity" if w >= 0.85 else "knowledge"
                 adj_w = max(w, 0.70)
             elif t == "pattern" and w >= 0.75:
-                target = "memory"
+                target = "knowledge"
                 adj_w = max(w, 0.70)
             elif t == "anomaly" and w >= 0.80:
-                target = "memory"
+                target = "knowledge"
                 adj_w = max(w, 0.75)
             elif t == "insight" and len(content) > 20:
-                target = "memory"
+                target = "knowledge"
                 adj_w = 0.70
             elif t == "discovery" and w >= 0.70:
-                target = "memory"
+                target = "knowledge"
                 adj_w = max(w, 0.70)
 
             proposal = {"idx": -1, "target": target, "weight": adj_w,
                         "content": content, "reason": "fallback heuristic"}
 
             if cfg.edit_mode == "auto" and adj_w >= 0.50 and content:
-                _apply_identity_edit(cfg, target, content, scope)
+                _apply_identity_edit(cfg, target, content, scope, weight=adj_w)
                 applied.append(proposal)
             else:
                 proposals.append(proposal)
@@ -760,24 +762,36 @@ Edit mode: {cfg.edit_mode}
 # CIRCUIT EDIT HELPERS
 # ═══════════════════════════════════════════════════════════════════
 
-def _apply_identity_edit(cfg, tier: str, content: str, scope: str = "profile"):
-    """Log a memory item to the identity log (never edit identity source files directly)."""
+def _save_to_memory(content: str, metadata: Dict[str, Any], log_path_fallback: Path) -> bool:
+    """Save to vector memory; fall back to JSONL if fails."""
+    try:
+        memory = asyncio.run(Memory.get_by_subdir("default"))
+        asyncio.run(memory.insert_text(content, metadata))
+        return True
+    except Exception:
+        try:
+            with open(log_path_fallback, "a") as f:
+                f.write(json.dumps({**metadata, "content": content[:200]}) + "\n")
+        except OSError:
+            pass
+        return False
+
+def _apply_identity_edit(cfg, tier: str, content: str, scope: str = "profile", weight: float = 0.5):
+    """Log a memory item via vector memory (memory_save)."""
     if scope == "role":
-        if tier in ("soul", "agents"):
-            tier = "memory"   # demote to safe tier
+        if tier in ("identity", "behavior"):
+            tier = "knowledge"   # demote to safe tier
 
     log_path = cfg.get_evol_state_path("identity_log.jsonl")
-    entry = {
-        "timestamp": _utc_now(),
+    metadata = {
+        "area": "evol",
         "tier": tier,
+        "profile": cfg.profile,
         "scope": scope,
-        "content": content[:200],
+        "weight": weight,
+        "timestamp": _utc_now(),
     }
-    try:
-        with open(log_path, "a") as f:
-            f.write(json.dumps(entry) + "\n")
-    except OSError:
-        pass
+    _save_to_memory(content, metadata, log_path)
 
 
 def _increment_counter(cfg, phase: str) -> int:

@@ -1,9 +1,10 @@
 {
-  "updated_at": "2026-05-20T07:51:06.484992+00:00",
-  "file_count": 32,
+  "updated_at": "2026-05-20T09:44:05.164978+00:00",
+  "file_count": 33,
   "file_hashes": {
+    "profile-alignment-report.md": "06efc710b0a4463028f40c5eea7aa3101cc2d60df7c45d4276ecfb0fad4c4f58",
     "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "project_knowledge.json": "6dd39c7f17b350d373b61d6da80fc5ed1059184341f69fa530e761d9829582db",
+    "project_knowledge.json": "1c8e623cba5ae1cddd8f57c909065136bd398b0145be1c13e1c58de4878970dd",
     "phase2-architect-design.txt": "a8dff51bbfbe6ed431a6cd71416dff4a41a939855014023598d79a048591a241",
     "plugin.yaml": "5fb22ebdc3efb1b68e142f5ea17260e30bdfac12dcc4e7ad96f51e283d07af97",
     ".phase1_plan.md": "4895ef10848ad04a4eb1c2e09d65146c07a149542d75d06116aa91ec4800a15c",
@@ -27,7 +28,7 @@
     "configs/default_evol.json": "23ed1461b5a0f97b73322e2440f6563d81f7bdd9a2e3876b7167b77ed3092646",
     "data/icon.svg": "2f08b3e428cbca1c650dd81ec2c221cf61d109d10ce5472d19857ad5f2ebede7",
     "helpers/engine.py": "a6122180873cfbabd997dfd63c7688b4a757339664d7340f038c3fa4fa1e28a0",
-    "helpers/registry.py": "e0b6fc9f9fb73097ebc2b141af8d24cd5effd37748bca050768bab4ae50cd2cb",
+    "helpers/registry.py": "ba97a96422b5ff328b7ea82889d6b177919bdcd603418f9ded36b0b6f19f578f",
     "helpers/knowledge.py": "30ed02f168bcd87b6b09d83975c959676d683febd872c7bb3bddfdee96c08e13",
     "helpers/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "helpers/commands.py": "7c34b8ce32c5640799209e82d562a134cc6b1c087e2d5bc07648c941b0604fba",
@@ -36,8 +37,7 @@
     "extensions/webui/initFw_end/evol-bottom-bar.js": "6f4e95dae9232db82547b56a4c2560152d536724fd3b09efa3a2d238537e3da9"
   },
   "recent_changes": [
-    "MODIFIED project_knowledge.json",
-    "ADDED phase2-architect-design.txt"
+    "MODIFIED project_knowledge.json"
   ],
   "gotchas": [
     "engine.py has dual import paths (try/except ImportError) \u2014 standalone tests need correct sys.path setup",
@@ -45,12 +45,20 @@
   ],
   "hot_cache": [
     {
-      "path": "phase2-architect-design.txt",
-      "mtime": "2026-05-20T07:16:39.214864+00:00"
+      "path": "project_knowledge.json",
+      "mtime": "2026-05-20T09:20:50.807979+00:00"
     },
     {
-      "path": "project_knowledge.json",
-      "mtime": "2026-05-20T07:07:06.899306+00:00"
+      "path": "helpers/registry.py",
+      "mtime": "2026-05-20T09:17:01.387649+00:00"
+    },
+    {
+      "path": "profile-alignment-report.md",
+      "mtime": "2026-05-20T07:51:30.792713+00:00"
+    },
+    {
+      "path": "phase2-architect-design.txt",
+      "mtime": "2026-05-20T07:16:39.214864+00:00"
     },
     {
       "path": "helpers/knowledge.py",
@@ -59,10 +67,6 @@
     {
       "path": "helpers/config.py",
       "mtime": "2026-05-20T07:01:13.554914+00:00"
-    },
-    {
-      "path": "helpers/registry.py",
-      "mtime": "2026-05-20T07:00:56.614853+00:00"
     },
     {
       "path": "helpers/engine.py",
@@ -79,10 +83,6 @@
     {
       "path": "helpers/commands.py",
       "mtime": "2026-05-20T06:47:32.566327+00:00"
-    },
-    {
-      "path": "configs/default_evol.json",
-      "mtime": "2026-05-20T06:47:21.367269+00:00"
     }
   ],
   "project_path": "/a0/usr/projects/a0-evol"
