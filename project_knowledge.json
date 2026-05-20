@@ -1,9 +1,10 @@
 {
-  "updated_at": "2026-05-20T07:07:06.900203+00:00",
-  "file_count": 31,
+  "updated_at": "2026-05-20T07:51:06.484992+00:00",
+  "file_count": 32,
   "file_hashes": {
     "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "project_knowledge.json": "22574afbf002631edef0810f4b2cf9e2859a76c7f9325c4a7cb3565d8a57839f",
+    "project_knowledge.json": "6dd39c7f17b350d373b61d6da80fc5ed1059184341f69fa530e761d9829582db",
+    "phase2-architect-design.txt": "a8dff51bbfbe6ed431a6cd71416dff4a41a939855014023598d79a048591a241",
     "plugin.yaml": "5fb22ebdc3efb1b68e142f5ea17260e30bdfac12dcc4e7ad96f51e283d07af97",
     ".phase1_plan.md": "4895ef10848ad04a4eb1c2e09d65146c07a149542d75d06116aa91ec4800a15c",
     "tools/evol_cycle.py": "493950db4e4084e10b2376a57ed1dc16759121f03bb33ef321b474ef21566d9a",
@@ -36,25 +37,21 @@
   },
   "recent_changes": [
     "MODIFIED project_knowledge.json",
-    "MODIFIED plugin.yaml",
-    "ADDED .phase1_plan.md",
-    "MODIFIED tools/evol_speak.py",
-    "MODIFIED tools/evol_reflect.py",
-    "MODIFIED tools/evol_absorb.py",
-    "ADDED tests/test_all_phases.py",
-    "ADDED webui/chat-input-bottom-actions-end.html",
-    "MODIFIED configs/default_evol.json",
-    "MODIFIED helpers/engine.py",
-    "MODIFIED helpers/registry.py",
-    "MODIFIED helpers/knowledge.py",
-    "MODIFIED helpers/commands.py",
-    "MODIFIED helpers/config.py"
+    "ADDED phase2-architect-design.txt"
   ],
   "gotchas": [
     "engine.py has dual import paths (try/except ImportError) \u2014 standalone tests need correct sys.path setup",
     "registry.py memorize() has None guards for expressed/explored \u2014 must test with real LLM calls"
   ],
   "hot_cache": [
+    {
+      "path": "phase2-architect-design.txt",
+      "mtime": "2026-05-20T07:16:39.214864+00:00"
+    },
+    {
+      "path": "project_knowledge.json",
+      "mtime": "2026-05-20T07:07:06.899306+00:00"
+    },
     {
       "path": "helpers/knowledge.py",
       "mtime": "2026-05-20T07:01:35.356992+00:00"
@@ -86,14 +83,6 @@
     {
       "path": "configs/default_evol.json",
       "mtime": "2026-05-20T06:47:21.367269+00:00"
-    },
-    {
-      "path": "tests/test_all_phases.py",
-      "mtime": "2026-05-20T06:46:23.613968+00:00"
-    },
-    {
-      "path": "tools/evol_reflect.py",
-      "mtime": "2026-05-20T06:45:59.521843+00:00"
     }
   ],
   "project_path": "/a0/usr/projects/a0-evol"
