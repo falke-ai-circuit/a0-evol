@@ -1,0 +1,8 @@
+name: a0_evol
+title: EVOL
+description: Subconscious observer plugin — 5-phase evolution cycle (absorb→reflect→explore→express→memorize). Runs heartbeat with cascading triggers, multi-provider LLM calls, and three-tier memory.
+version: 0.5.2
+settings_sections:
+  - agent
+per_agent_config: true
+per_project_config: false

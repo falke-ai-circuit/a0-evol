@@ -1,0 +1,78 @@
+{
+  "mode": "profile",
+  "enabled": true,
+  "edit_mode": "suggested",
+  "operation_mode": "persistent",
+  "cooldown_minutes": 240,
+  "express_cooldown_hours": 12,
+  "idle_trigger_minutes": 30,
+  "activity_trigger_tasks": 1,
+  "phase_triggers": {
+    "reflect": 3,
+    "express": 3,
+    "explore": 2,
+    "memorize": 2
+  },
+  "fallback_cycle_hours": 24,
+  "express_style": "creative",
+  "explore_query_limit": 3,
+  "session_scope": "role",
+  "max_retries_per_phase": 3,
+  "max_cycles_per_day": 6,
+  "express_post_command": "",
+  "phase_post_commands": {},
+  "search_backend": "wikipedia",
+  "search_backend_url": "",
+  "search_api_key": "",
+  "phases": {
+    "absorb": true,
+    "reflect": true,
+    "explore": true,
+    "express": true,
+    "memorize": true
+  },
+  "phase_models": {
+    "absorb": {
+      "provider": "",
+      "model": "",
+      "api_key": "",
+      "temperature": 0.3,
+      "max_tokens": 4096
+    },
+    "reflect": {
+      "provider": "",
+      "model": "",
+      "api_key": "",
+      "temperature": 0.5,
+      "max_tokens": 8192
+    },
+    "explore": {
+      "provider": "",
+      "model": "",
+      "api_key": "",
+      "temperature": 0.7,
+      "max_tokens": 4096
+    },
+    "express": {
+      "provider": "",
+      "model": "",
+      "api_key": "",
+      "temperature": 0.9,
+      "max_tokens": 4096
+    },
+    "memorize": {
+      "provider": "",
+      "model": "",
+      "api_key": "",
+      "temperature": 0.3,
+      "max_tokens": 4096
+    }
+  },
+  "global_profiles": ["conductor"],
+  "circuit_weights": [
+    {"path": "SOUL.md", "weight": 1.0, "role": "identity"},
+    {"path": "AGENTS.md", "weight": 0.95, "role": "behavior"},
+    {"path": "MEMORY.md", "weight": 0.65, "role": "knowledge"},
+    {"path": "IDENTITY.md", "weight": 0.9, "role": "identity"}
+  ]
+}
